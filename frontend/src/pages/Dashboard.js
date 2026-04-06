@@ -44,7 +44,7 @@ export default function Dashboard() {
           {inv.nearExpiry > 0 && `${inv.nearExpiry} near expiry · `}
           {inv.expired > 0 && `${inv.expired} expired · `}
           {inv.deadStock > 0 && `${inv.deadStock} dead stock`}
-          &nbsp;— <a href="/inventory" style={{ color: 'inherit', fontWeight: 700 }}>View Inventory →</a>
+          &nbsp;— <a href="/inventory" style={{ color: 'inherit', fontWeight: 700 }}>View Inventory from here →</a>
         </div>
       )}
 
