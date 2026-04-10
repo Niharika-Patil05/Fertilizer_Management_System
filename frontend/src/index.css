@@ -422,9 +422,24 @@ select.form-control { cursor: pointer; }
 .invoice-print { padding: 32px; font-family: 'Sora', sans-serif; }
 .invoice-print h2 { color: var(--green-800); }
 @media print {
-  .no-print { display: none !important; }
-  .modal-overlay { position: static; background: none; }
-  .modal { box-shadow: none; max-height: none; }
+  body * {
+    visibility: hidden;
+  }
+
+  .modal-body, .modal-body * {
+    visibility: visible;
+  }
+
+  .modal {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+
+  .no-print {
+    display: none !important;
+  }
 }
 
 /* ── Reliability score ─────────────────── */
