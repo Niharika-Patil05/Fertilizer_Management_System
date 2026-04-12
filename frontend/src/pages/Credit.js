@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 
-const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN');
+const fmt = n => 'Rs.' + Number(n || 0).toLocaleString('en-IN');
 
 function ScoreBar({ score }) {
   const color = score >= 80 ? 'var(--green-500)' : score >= 60 ? '#f59e0b' : score >= 40 ? '#f97316' : 'var(--red-500)';
@@ -130,7 +130,7 @@ export default function Credit() {
 
       {/* Reliability formula info */}
       <div className="card" style={{ marginBottom: 20, background: 'var(--blue-300)', border: '1px solid var(--blue-500)' }}>
-        <div style={{ fontSize: 15, color: '#1237af' }}>
+        <div style={{ fontSize: 12, color: '#1237af' }}>
           <strong> Borrower Reliability Score Formula:</strong>&nbsp;
           <span className="mono">Score = (On-Time Payments ÷ Total Payments) × 100</span>
           &nbsp;|&nbsp; 🟢 Excellent ≥80% &nbsp; 🟡 Good ≥60% &nbsp; 🟠 Fair ≥40% &nbsp; 🔴 Poor &lt;40%

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
 
-const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN');
+const fmt = n => 'Rs.' + Number(n || 0).toLocaleString('en-IN');
 
 function AlertTable({ items, type }) {
   if (items.length === 0) return (

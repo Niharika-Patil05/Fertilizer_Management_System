@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import api from '../utils/api';
 
-const fmt = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
+const fmt = (n) => 'Rs.' + Number(n || 0).toLocaleString('en-IN');
 const fmtNum = (n) => Number(n || 0).toLocaleString('en-IN');
 
 export default function Dashboard() {

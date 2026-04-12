@@ -155,8 +155,8 @@ export default function Products() {
                         {p.stockQuantity} {p.unit}
                       </span>
                     </td>
-                    <td className="mono">₹{p.purchasePrice}</td>
-                    <td className="mono">₹{p.sellingPrice}</td>
+                    <td className="mono">Rs.{p.purchasePrice}</td>
+                    <td className="mono">Rs.{p.sellingPrice}</td>
                     <td style={{ fontSize: 12 }}>
                       {p.expiryDate ? (
                         <span style={{ color: p.isExpired ? 'var(--red-500)' : p.isNearExpiry ? '#f59e0b' : 'inherit' }}>
@@ -218,11 +218,11 @@ export default function Products() {
                 </div>
                 <div className="form-row-3">
                   <div className="form-group">
-                    <label className="form-label">Purchase Price (₹) *</label>
+                    <label className="form-label">Purchase Price (Rs.) *</label>
                     <input type="number" className="form-control" value={form.purchasePrice} onChange={e => setF('purchasePrice', e.target.value)} required min="0" step="0.01" />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Selling Price (₹) *</label>
+                    <label className="form-label">Selling Price (Rs.) *</label>
                     <input type="number" className="form-control" value={form.sellingPrice} onChange={e => setF('sellingPrice', e.target.value)} required min="0" step="0.01" />
                   </div>
                   <div className="form-group">
