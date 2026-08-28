@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -7,8 +9,18 @@ dotenv.config();
 
 const app = express();
 
+// App version: read repo VERSION file, fall back to env, then 0.0.0
+const APP_VERSION = (() => {
+  try {
+    return fs.readFileSync(path.join(__dirname, '..', 'VERSION'), 'utf8').trim();
+  } catch (e) {
+    return process.env.APP_VERSION || '0.0.0';
+  }
+})();
+
 // Middleware
-app.use(cors());
+// CORS_ORIGIN blank -> reflect request origin (safe for a single-origin localhost deployment)
+app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : true }));
 app.use(express.json());
 
 // Routes
@@ -20,14 +32,27 @@ app.use('/api/credit', require('./routes/credit'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 
 // Health check
-app.get('/api/health', (req, res) => res.json({ status: 'OK', message: 'Fertilizer Management System API' }));
+app.get('/api/health', (req, res) => res.json({
+  status: 'OK',
+  message: 'Fertilizer Management System API',
+  version: APP_VERSION,
+  db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+}));
 
 // MongoDB connection
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/fertilizer_mgmt';
 
-mongoose.connect(MONGO_URI)
-  .then(() => console.log('✅ MongoDB Connected'))
-  .catch(err => console.error('❌ MongoDB connection error:', err));
+// Retry loop: in Docker the mongo container may not accept connections immediately
+const connectWithRetry = (attempt = 1) => {
+  mongoose.connect(MONGO_URI)
+    .then(() => console.log('✅ MongoDB Connected'))
+    .catch(err => {
+      const wait = Math.min(attempt * 2000, 10000);
+      console.error(`❌ MongoDB connection error (attempt ${attempt}): ${err.message}. Retrying in ${wait / 1000}s`);
+      setTimeout(() => connectWithRetry(attempt + 1), wait);
+    });
+};
+connectWithRetry();
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT} (v${APP_VERSION})`));

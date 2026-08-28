@@ -1,0 +1,79 @@
+name: fms
+
+services:
+  mongo:
+    image: mongo:${MONGO_IMAGE_TAG:-7}
+    container_name: fms-mongo
+    restart: unless-stopped
+    # NO host port published: MongoDB is reachable only from the other containers
+    # on the internal "fmsnet" network, never from the sponsor's LAN or the internet.
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - fmsnet
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  backend:
+    image: ghcr.io/${IMAGE_OWNER:-niharika-patil05}/fms-backend:${APP_VERSION:-1.0.0}
+    container_name: fms-backend
+    build:
+      context: ./backend
+      args:
+        APP_VERSION: ${APP_VERSION:-1.0.0}
+    restart: unless-stopped
+    env_file:
+      - path: ./.env
+        required: false
+    environment:
+      # MONGO_URI in .env points at the "mongo" service hostname on the compose network
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    # NO host port published: the API is only reached through the frontend nginx /api proxy.
+    networks:
+      - fmsnet
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  frontend:
+    image: ghcr.io/${IMAGE_OWNER:-niharika-patil05}/fms-frontend:${APP_VERSION:-1.0.0}
+    container_name: fms-frontend
+    build:
+      context: ./frontend
+      args:
+        REACT_APP_API_URL: /api
+        REACT_APP_VERSION: ${APP_VERSION:-1.0.0}
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - fmsnet
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+networks:
+  fmsnet:
+    driver: bridge
+
+volumes:
+  mongo_data:
+    # Fixed, project-independent name so the sponsor's data volume is never
+    # accidentally renamed or recreated by a project-name change.
+    name: fms_mongo_data

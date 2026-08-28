@@ -69,6 +69,7 @@ export default function Layout() {
             {user?.email}
           </div>
           <button className="btn-logout" onClick={logout}>↩ Logout</button>
+          <div className="sidebar-version mono">v{process.env.REACT_APP_VERSION || 'dev'}</div>
         </div>
       </aside>
 

@@ -1,0 +1,12 @@
+# Normalise line endings so the deployment package is correct on every machine.
+* text=auto eol=lf
+
+# Windows batch scripts MUST use CRLF – LF-only .bat files can misbehave on cmd.exe
+# (multi-line blocks, labels/goto at end of file).
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+
+# Everything the containers/Linux run stays LF.
+*.sh   text eol=lf
+Dockerfile text eol=lf
+*.yml  text eol=lf

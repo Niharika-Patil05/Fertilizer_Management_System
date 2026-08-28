@@ -10,6 +10,15 @@ const Invoice = require('./models/Invoice');
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/fertilizer_mgmt';
 
+// SAFETY GUARD: seed.js wipes every collection before inserting sample data.
+// It must never run against a sponsor/production database. Require an explicit opt-in.
+if (process.env.ALLOW_SEED !== 'true') {
+  console.error('\n⛔ seed.js is DESTRUCTIVE (it deletes all users, products, customers and invoices).');
+  console.error('   It is refusing to run because ALLOW_SEED is not set to "true".');
+  console.error('   For local development only, run:  ALLOW_SEED=true npm run seed\n');
+  process.exit(1);
+}
+
 const seedData = async () => {
   try {
     await mongoose.connect(MONGO_URI);
