@@ -26,10 +26,15 @@ Sponsor's Windows PC  ──  Docker Desktop
 
 * **Application code and database data are completely separate.** Updates replace the
   `frontend`/`backend` containers. They never delete the `fms_mongo_data` volume.
-* The sponsor only ever runs the `.bat` scripts in [`scripts/`](scripts/). They never
-  type Docker, Node, npm, MongoDB or Git commands.
+* The sponsor gets a single **`FertilizerShopSetup.exe`** (built from
+  [`installer/FertilizerShop.iss`](installer/FertilizerShop.iss) with Inno Setup). They
+  run it once, click through the wizard, and get a **"Fertilizer Shop" icon** on their
+  Desktop and Start Menu. They never see Docker, a terminal, or type a URL.
 * Updates are shipped as versioned Docker images on GitHub Container Registry (GHCR).
-  The sponsor's PC needs internet **only during install and updates**; daily use is offline.
+  Every time the sponsor opens the Desktop icon, it quietly checks GitHub for a newer
+  version and updates itself first (backing up the database, rolling back automatically
+  if anything fails) — see [Auto-update](#auto-update-how-it-works) below. Daily use only
+  needs internet for that quick check; the app itself works offline.
 
 ---
 
@@ -77,51 +82,99 @@ docker compose down                # stop (data volume is kept)
 
 **One time:**
 
-1. **Extract the deployment package** (this folder) somewhere permanent, e.g.
-   `C:\FertilizerSystem`. Do **not** move it after install.
-2. Connect the PC to the **internet** (needed only for this first start).
-3. Double‑click **`Install Fertilizer Shop.bat`** at the top of the folder.
-   * It installs Docker Desktop automatically if it isn't already installed (this is
-     the one interruption that needs the sponsor to click "Yes" on a Windows permission
-     popup, and — rarely — let the PC restart once; the script says so if it happens and
-     just needs to be run again afterward).
-   * It then downloads and starts the app, and creates a **"Fertilizer Shop" icon on
-     the Desktop**.
-   * It finishes by opening the app in the browser automatically.
-4. Since this is a brand-new database, you'll see **"Create Your Account"** — enter
-   your own name, shop name, email and password. That becomes the one admin login for
-   the shop. There is no default password to remember or change.
+1. Send the sponsor **`FertilizerShopSetup.exe`** (see
+   [Building the installer](#building-the-installer-developer) below for how you make
+   this file). One file — no zip, no folder to extract.
+2. Connect the PC to the **internet** (needed only for this first install).
+3. They double‑click it and click through the wizard (Next → Install → Finish). Behind
+   the scenes it:
+   * Copies the app files to `C:\Program Files\Fertilizer Shop\`.
+   * Creates a **"Fertilizer Shop" icon** on the Desktop and in the Start Menu.
+   * On Finish, runs the first-time setup: installs Docker Desktop automatically if it
+     isn't already installed (this is the one interruption that needs a click on a
+     Windows permission popup, and — rarely — a single PC restart; if that happens, it
+     says so and the sponsor just opens "Fertilizer Shop" again to pick up where it left
+     off), then downloads and starts the app, and opens it in the browser.
+4. Since this is a brand-new database, they'll see **"Create Your Account"** — their own
+   name, shop name, email and password. That becomes the one admin login for the shop.
+   There is no default password to remember or change.
 
 After this the PC can be used offline. From now on the sponsor never sees a terminal,
-Docker, or a URL to type — they just **double‑click the "Fertilizer Shop" icon on the
-Desktop**, which starts everything quietly in the background and opens the app in the
+Docker, or a URL to type — they just **click the "Fertilizer Shop" icon**, which checks
+for updates, starts everything quietly in the background, and opens the app in the
 browser once it's ready.
 
 > ⚠️ **Never delete the `.env` file** and **never run `docker compose down -v`**. Both
-> are the only ways to lose data. Everything else is safe.
+> are the only ways to lose data. Everything else — including uninstalling and
+> reinstalling the app itself — is safe; see [Data Safety](#data-safety).
+
+### Auto-update, how it works
+
+Every time the sponsor opens the Desktop icon, `scripts\_launch_hidden.vbs` runs
+`scripts\update.bat --quiet` first, hidden, before starting the app:
+
+1. Reads the currently installed version from `.env` (`APP_VERSION`).
+2. Fetches [`release.json`](release.json) from the `main` branch on GitHub (raw file,
+   no auth needed) and compares `.version`.
+3. If it's newer: **backs up the database** (`scripts\backup.bat quiet`) — if the
+   backup fails, the update is aborted and nothing changes. Otherwise it pulls the new
+   images, applies them (`docker compose up -d`, which runs migrations automatically),
+   and health-checks. If any of that fails, it **rolls back** `.env` to the old version
+   and restarts the previous containers — the same safe, tested logic as running
+   `scripts\update.bat` by hand, just non-interactive (no `pause`s) and silent about
+   anything that isn't an actual failure.
+4. Whether or not an update ran, `scripts\_start_silent.bat` then makes sure the app is
+   actually up, and the browser opens.
+
+This means **you never need to send the sponsor a new `Setup.exe` for a routine
+update** — publishing a new version (see [Releasing a New Version](#releasing-a-new-version-developer))
+is enough; it reaches every install the next time they open the icon. A new
+`Setup.exe` is only needed for a brand-new PC that doesn't have the app yet.
 
 <details>
-<summary><strong>Advanced: what "Install Fertilizer Shop.bat" and the Desktop icon actually do</strong> (for the developer, not the sponsor)</summary>
+<summary><strong>Advanced: what the installer and the Desktop icon actually run</strong> (for the developer, not the sponsor)</summary>
 
-* `Install Fertilizer Shop.bat` (repo root) — one-time only. Silently installs Docker
-  Desktop if missing (`Docker Desktop Installer.exe install --quiet --accept-license`),
-  waits for the engine, runs `scripts\_start_silent.bat`, then creates
-  `%USERPROFILE%\Desktop\Fertilizer Shop.lnk` via `scripts\_make_shortcut.vbs`
-  (icon: `app.ico`, target: `scripts\_launch_hidden.vbs`).
-* `scripts\_start_silent.bat` — the same first-run/start logic as the old
-  `scripts\start.bat`, minus the banner and the closing `pause`, so it can be called
-  with no user interaction. Exit code 0 = healthy; non‑zero = something failed.
-* `scripts\_launch_hidden.vbs` — what the Desktop icon runs every day. Launches
-  `_start_silent.bat` in a **hidden** window (`WshShell.Run(..., 0, True)`), waits for
-  it to finish, then opens `http://localhost:8080` in the default browser. Shows a
-  plain-language message box only if something goes wrong.
+* `installer/FertilizerShop.iss` — Inno Setup source for `FertilizerShopSetup.exe`.
+  Installs `docker-compose.yml`, `.env.example`, `app.ico`, `README.md` and `scripts\`
+  into `{autopf}\Fertilizer Shop`, creates the Desktop + Start Menu shortcuts (pointing
+  at `scripts\_launch_hidden.vbs`, icon `app.ico`), and on Finish runs
+  `scripts\_first_run.bat`.
+* `scripts\_first_run.bat` — installs Docker Desktop if missing
+  (`Docker Desktop Installer.exe install --quiet --accept-license`), waits for the
+  engine, then calls `scripts\_start_silent.bat` and opens the browser. Shows a normal
+  visible console window (via Inno's `shellexec`) since this one-time step can take
+  several minutes and the sponsor should see it's working.
+* `scripts\_start_silent.bat` — the same first-run/start logic as `scripts\start.bat`,
+  minus the banner and the closing `pause`, so it can be called with no user
+  interaction. Exit code 0 = healthy; non‑zero = something failed.
+* `scripts\update.bat --quiet` — the same logic as running `scripts\update.bat` by
+  hand, minus every `pause`; a Docker/setup problem in quiet mode backs off silently
+  (exit 0) rather than failing loudly, since reporting problems is `_start_silent.bat`'s
+  job, not the update check's.
+* `scripts\_launch_hidden.vbs` — what the Desktop/Start Menu icon runs every time.
+  Runs `update.bat --quiet` then `_start_silent.bat`, both in a **hidden** window
+  (`WshShell.Run(..., 0, True)`), then opens `http://localhost:8080`. Shows a
+  plain-language message box only if `_start_silent.bat` didn't come up healthy.
 * The old `scripts\start.bat` / `stop.bat` / `logs.bat` etc. still exist and still work
   from a normal command prompt — useful for you, not meant for the sponsor.
 
-These `.bat`/`.vbs` scripts were written and reviewed but **could not be executed in
-the authoring environment** (no Windows machine available) — test the whole flow on a
-real Windows PC before handing it to the sponsor.
+These `.bat`/`.vbs` scripts, and the `.iss` installer source, were written and reviewed
+but **could not be executed or compiled in the authoring environment** (no Windows
+machine, no Inno Setup available) — build and test the whole flow (install → first run
+→ close and reopen the icon → simulate an update by bumping `release.json`) on a real
+Windows PC before handing it to the sponsor.
 </details>
+
+### Building the installer (developer)
+
+1. Install Inno Setup (free): <https://jrsoftware.org/isdl.php>
+2. Open `installer/FertilizerShop.iss` in the Inno Setup Compiler (or right-click it →
+   **Compile**).
+3. Find `FertilizerShopSetup.exe` in `installer/dist/`. Send that one file to the
+   sponsor (it's not committed to git — build it fresh for each new install).
+4. Bump `#define MyAppVersion` in the `.iss` to match `VERSION`/`release.json` on each
+   release, so Add/Remove Programs shows the right number (this label is cosmetic —
+   the actual running app version is controlled by the auto-updater, independently).
 
 ---
 
@@ -279,7 +332,10 @@ external storage regularly.
    pick up.) Make the GHCR packages
    **public** once (Package settings → Change visibility) so the sponsor can pull
    without logging in.
-6. Tell the sponsor: *"Connect to the internet and double‑click `update.bat`."*
+6. That's it — nothing to tell the sponsor. The next time they open the "Fertilizer
+   Shop" icon (with internet available), `update.bat --quiet` picks up the new
+   `release.json` automatically. A new `FertilizerShopSetup.exe` is only needed for an
+   installation that doesn't have the app yet.
 
 The `IMAGE_OWNER` value in `.env.example` / `.env` and the repo URL inside
 `scripts/update.*` must match your GitHub account/repo.
@@ -298,7 +354,7 @@ The `IMAGE_OWNER` value in `.env.example` / `.env` and the repo URL inside
 | Update failed | It already rolled back. Data is safe; backup is in `backups\`. Send `scripts\logs.bat` output to the developer. |
 | "I deleted `.env`" | Restore `env.backup` from your most recent `backups\fms-*` folder to `.env`, then `start.bat`. If no backup exists, run `start.bat` (it makes a new `.env`) – existing data is still there but everyone must log in again. |
 | Need a totally clean reinstall **keeping data** | `stop.bat`, then `start.bat`. The volume is reused automatically. |
-| Move the app to a new PC | Install Docker Desktop there, copy this whole folder **including `.env`**, run `backup.bat` on the old PC, copy the `backups\` folder over, run `start.bat` then `restore.bat <backup>` on the new PC. |
+| Move the app to a new PC | Run `backup.bat` on the old PC, copy the `backups\` folder to a USB drive. Run `FertilizerShopSetup.exe` on the new PC like a normal first install, then copy that `backups\` folder into the new `C:\Program Files\Fertilizer Shop\` and run `scripts\restore.bat <backup>` there. |
 
 ---
 
@@ -316,16 +372,17 @@ The `IMAGE_OWNER` value in `.env.example` / `.env` and the repo URL inside
 ## Project Structure
 ```
 Fertilizer_Management_System/
-├── Install Fertilizer Shop.bat ← sponsor double-clicks this ONCE (installs Docker, starts the app, makes the Desktop icon)
-├── app.ico                     ← icon used by the Desktop shortcut
+├── installer/FertilizerShop.iss ← Inno Setup source → compiles to FertilizerShopSetup.exe (sponsor runs this ONCE)
+├── app.ico                     ← icon used by the installer + Desktop/Start Menu shortcuts
 ├── docker-compose.yml          ← 3 services + named volume
 ├── .env.example                ← configuration template (copy to .env)
-├── VERSION / release.json      ← current app version
+├── VERSION / release.json      ← current app version (release.json is what the auto-updater polls)
 ├── .github/workflows/release.yml ← builds & pushes versioned images on a git tag
 ├── scripts/                    ← start / stop / restart / backup / restore / update / rollback / logs  (.bat + .sh)
-│   ├── _start_silent.bat       ← shared no-prompt startup logic (used by the installer + the Desktop icon)
-│   ├── _make_shortcut.vbs      ← creates the Desktop "Fertilizer Shop" icon (run once by the installer)
-│   └── _launch_hidden.vbs      ← what the Desktop icon actually runs every day (hidden window)
+│   ├── _first_run.bat          ← run once by the installer: installs Docker if missing, first start
+│   ├── _start_silent.bat       ← shared no-prompt startup logic (used by _first_run + the Desktop icon)
+│   ├── update.bat --quiet      ← non-interactive auto-update check (used by the Desktop icon)
+│   └── _launch_hidden.vbs      ← what the Desktop/Start Menu icon runs every time (hidden window)
 ├── backend/
 │   ├── Dockerfile
 │   ├── migrate.js              ← tracked, idempotent migration runner

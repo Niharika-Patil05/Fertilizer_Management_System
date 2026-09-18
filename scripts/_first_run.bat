@@ -1,18 +1,19 @@
 @echo off
 REM ============================================================
-REM  Fertilizer Shop - First Time Setup
-REM  Double-click this ONCE. It installs everything needed and
-REM  puts a "Fertilizer Shop" icon on your Desktop for every day
-REM  after that.
+REM  Runs once, automatically, at the end of the Setup.exe wizard
+REM  (see installer\FertilizerShop.iss [Run] section). Installs
+REM  Docker if needed, then starts the app for the first time.
+REM  The Desktop/Start Menu shortcuts are created by the installer
+REM  itself - this script only gets the app running.
 REM ============================================================
 setlocal enabledelayedexpansion
-title Fertilizer Shop - First Time Setup
-cd /d "%~dp0"
+title Fertilizer Shop - Finishing Setup
+cd /d "%~dp0.."
 
 echo ============================================================
-echo   Setting up your Fertilizer Shop system
-echo   This only runs once. Please wait - it can take a while
-echo   the first time, especially if your internet is slow.
+echo   Finishing setup
+echo   This can take a while the first time, especially if your
+echo   internet is slow. Please don't close this window.
 echo ============================================================
 echo.
 
@@ -29,20 +30,22 @@ if %errorlevel%==0 (
 echo This system needs one extra free program called "Docker Desktop".
 echo Downloading it now...
 echo.
-powershell -NoProfile -Command "Invoke-WebRequest -Uri 'https://desktop.docker.com/win/main/amd64/Docker Desktop Installer.exe' -OutFile '%~dp0DockerDesktopInstaller.exe'"
-if not exist "%~dp0DockerDesktopInstaller.exe" (
-  echo [FAILED] Could not download Docker Desktop. Please check your internet connection and try again.
+powershell -NoProfile -Command "Invoke-WebRequest -Uri 'https://desktop.docker.com/win/main/amd64/Docker Desktop Installer.exe' -OutFile '%TEMP%\DockerDesktopInstaller.exe'"
+if not exist "%TEMP%\DockerDesktopInstaller.exe" (
+  echo [FAILED] Could not download Docker Desktop. Please check your internet connection,
+  echo then run "Fertilizer Shop" from the Start Menu again.
   echo If this keeps happening, call your developer.
   pause
   exit /b 1
 )
 
 echo Installing Docker Desktop - please wait, this can take several minutes...
-"%~dp0DockerDesktopInstaller.exe" install --quiet --accept-license
+"%TEMP%\DockerDesktopInstaller.exe" install --quiet --accept-license
+del "%TEMP%\DockerDesktopInstaller.exe" >nul 2>nul
 echo.
-echo IMPORTANT: If Windows now asks you to restart the computer, please
-echo let it restart, then double-click "Install Fertilizer Shop.bat" again
-echo to finish - your progress so far is not lost.
+echo IMPORTANT: If Windows now asks you to restart the computer, please let
+echo it restart, then open "Fertilizer Shop" from the Desktop or Start Menu
+echo again to finish - your progress so far is not lost.
 echo.
 start "" "C:\Program Files\Docker\Docker\Docker Desktop.exe"
 
@@ -56,8 +59,8 @@ set /a tries+=1
 if %tries% geq 60 (
   echo.
   echo Docker is still starting, or your computer needs to restart first.
-  echo Please restart your computer if Windows asked you to, then double-click
-  echo "Install Fertilizer Shop.bat" again.
+  echo Please restart your computer if Windows asked you to, then open
+  echo "Fertilizer Shop" from the Desktop or Start Menu again.
   pause
   exit /b 1
 )
@@ -68,16 +71,12 @@ goto waitdockerloop
 echo Docker is ready.
 echo.
 echo Downloading and starting your shop system - first time only...
-call "%~dp0scripts\_start_silent.bat"
+call "%~dp0_start_silent.bat"
 if errorlevel 1 (
   echo [FAILED] The system did not start. Call your developer and show them this window.
   pause
   exit /b 1
 )
-
-echo.
-echo Creating your "Fertilizer Shop" icon on the Desktop...
-cscript //nologo "%~dp0scripts\_make_shortcut.vbs"
 
 echo.
 echo ============================================================
@@ -87,7 +86,7 @@ echo.
 echo Opening your Fertilizer Shop system now...
 start "" "http://localhost:8080"
 echo.
-echo From now on, just double-click the "Fertilizer Shop" icon on
-echo your Desktop every day. You will not need this window again.
+echo From now on, just open "Fertilizer Shop" from your Desktop or
+echo Start Menu. It will keep itself up to date automatically.
 echo.
 pause
