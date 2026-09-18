@@ -1,4 +1,4 @@
 {
-  "version": "1.1.0",
-  "notes": "Fixed the New Invoice form to accept discount, tax, credit customer and payment fields; fixed a billing calculation bug; discount/tax now entered as percentages; redesigned the printed bill to match the shop's official paper format; replaced the hardcoded default admin login with a first-run 'Create Your Account' screen."
+  "version": "1.2.0",
+  "notes": "Replaced the hardcoded default admin login with a first-run 'Create Your Account' screen (the old open /register endpoint is now locked after the first account). Added a one-click installer (Install Fertilizer Shop.bat) that installs Docker automatically if needed and creates a 'Fertilizer Shop' Desktop icon, so day-to-day use is just double-clicking that icon."
 }
