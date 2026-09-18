@@ -52,7 +52,8 @@ npm install
 npm start                          # http://localhost:3000  (CRA proxy → :5000)
 ```
 
-Login: `admin@shriramkrushi.com` / `admin123` (from `ADMIN_*` in `.env`; change after first login).
+First run on an empty database shows a **"Create Your Account"** screen — pick any
+email/password there, no pre-set credentials.
 
 `npm run seed` still exists for a quick demo dataset, but it is **destructive** (wipes all
 collections) and now refuses to run unless you explicitly pass `ALLOW_SEED=true`:
@@ -85,10 +86,10 @@ docker compose down                # stop (data volume is kept)
    * On the first run it creates a `.env` file with a random security key and downloads
      the application. This can take a few minutes.
    * When it finishes it prints: `Open your web browser at: http://localhost:8080`
-5. Open **http://localhost:8080** and log in:
-   * Email: `admin@shriramkrushi.com`  Password: `admin123`
-   * **Change this password** immediately (or ask the developer to set `ADMIN_PASSWORD`
-     in `.env` before the very first start).
+5. Open **http://localhost:8080**. Since this is a brand-new database, you'll see
+   **"Create Your Account"** — enter your own name, shop name, email and password.
+   That becomes the one admin login for the shop. There is no default password to
+   remember or change.
 
 After this the PC can be used offline. Leave Docker Desktop running while using the app.
 
@@ -260,7 +261,7 @@ The `IMAGE_OWNER` value in `.env.example` / `.env` and the repo URL inside
 | `start.bat` says *Docker Desktop is not running* | Open Docker Desktop, wait for "Engine running", retry. |
 | Browser can't open `http://localhost:8080` | Another program uses port 8080. Edit `.env`, set e.g. `FRONTEND_PORT=9090`, run `stop.bat` then `start.bat`, use `http://localhost:9090`. |
 | App stuck "not healthy" | `scripts\logs.bat` to see errors. Usually the first start is still downloading MongoDB – wait and retry `start.bat`. |
-| Forgot admin password | Ask developer: set a new `ADMIN_*` is only used on an empty DB. Instead create a new user via the Register API, or restore a backup. |
+| Forgot admin password | There's no reset flow yet — ask the developer to update the password directly in the database, or restore a backup from before the password was changed. |
 | `update.bat` says can't reach GitHub | PC is offline, or the GHCR packages aren't public. Connect to internet / make packages public, retry. |
 | Update failed | It already rolled back. Data is safe; backup is in `backups\`. Send `scripts\logs.bat` output to the developer. |
 | "I deleted `.env`" | Restore `env.backup` from your most recent `backups\fms-*` folder to `.env`, then `start.bat`. If no backup exists, run `start.bat` (it makes a new `.env`) – existing data is still there but everyone must log in again. |
@@ -291,7 +292,7 @@ Fertilizer_Management_System/
 ├── backend/
 │   ├── Dockerfile
 │   ├── migrate.js              ← tracked, idempotent migration runner
-│   ├── migrations/             ← NNN-*.js  (001 bootstraps admin, 002 backfills isActive)
+│   ├── migrations/             ← NNN-*.js  (001 no-op, 002 backfills isActive, 003 clears legacy default admin)
 │   ├── models/                 ← User, Product, Customer, Invoice
 │   ├── routes/                 ← auth, products, inventory, billing, credit, dashboard
 │   ├── middleware/auth.js      ← JWT middleware
@@ -345,6 +346,5 @@ Score = (On-Time Payments / Total Payments) × 100
 | `JWT_SECRET` | Login‑token signing key. Random per install, generated once by `start.bat`. Keep secret & stable. |
 | `JWT_EXPIRE` | Login validity (default `30d`). |
 | `CORS_ORIGIN` | Allowed browser origins (blank = reflect request origin – fine for localhost). |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `SHOP_NAME` | Used **only** by migration 001 on an empty database. |
 
 *Academic Year 2025‑26 | Shivaji University, Kolhapur*

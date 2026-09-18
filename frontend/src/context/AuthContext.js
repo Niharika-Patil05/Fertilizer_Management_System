@@ -24,6 +24,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const register = async ({ name, email, password, shopName }) => {
+    setLoading(true);
+    try {
+      const { data } = await api.post('/auth/register', { name, email, password, shopName });
+      localStorage.setItem('fms_token', data.token);
+      localStorage.setItem('fms_user', JSON.stringify(data.data));
+      setUser(data.data);
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: err.response?.data?.message || 'Account creation failed' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('fms_token');
     localStorage.removeItem('fms_user');
@@ -31,7 +46,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
