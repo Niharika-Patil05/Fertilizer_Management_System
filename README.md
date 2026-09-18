@@ -77,31 +77,63 @@ docker compose down                # stop (data volume is kept)
 
 **One time:**
 
-1. **Install Docker Desktop** – <https://www.docker.com/products/docker-desktop/> –
-   start it and wait until it says *"Engine running"*.
-2. **Extract the deployment package** (this folder) somewhere permanent, e.g.
+1. **Extract the deployment package** (this folder) somewhere permanent, e.g.
    `C:\FertilizerSystem`. Do **not** move it after install.
-3. Connect the PC to the **internet** (needed only for this first start).
-4. Double‑click **`scripts\start.bat`**.
-   * On the first run it creates a `.env` file with a random security key and downloads
-     the application. This can take a few minutes.
-   * When it finishes it prints: `Open your web browser at: http://localhost:8080`
-5. Open **http://localhost:8080**. Since this is a brand-new database, you'll see
-   **"Create Your Account"** — enter your own name, shop name, email and password.
-   That becomes the one admin login for the shop. There is no default password to
-   remember or change.
+2. Connect the PC to the **internet** (needed only for this first start).
+3. Double‑click **`Install Fertilizer Shop.bat`** at the top of the folder.
+   * It installs Docker Desktop automatically if it isn't already installed (this is
+     the one interruption that needs the sponsor to click "Yes" on a Windows permission
+     popup, and — rarely — let the PC restart once; the script says so if it happens and
+     just needs to be run again afterward).
+   * It then downloads and starts the app, and creates a **"Fertilizer Shop" icon on
+     the Desktop**.
+   * It finishes by opening the app in the browser automatically.
+4. Since this is a brand-new database, you'll see **"Create Your Account"** — enter
+   your own name, shop name, email and password. That becomes the one admin login for
+   the shop. There is no default password to remember or change.
 
-After this the PC can be used offline. Leave Docker Desktop running while using the app.
+After this the PC can be used offline. From now on the sponsor never sees a terminal,
+Docker, or a URL to type — they just **double‑click the "Fertilizer Shop" icon on the
+Desktop**, which starts everything quietly in the background and opens the app in the
+browser once it's ready.
 
 > ⚠️ **Never delete the `.env` file** and **never run `docker compose down -v`**. Both
 > are the only ways to lose data. Everything else is safe.
+
+<details>
+<summary><strong>Advanced: what "Install Fertilizer Shop.bat" and the Desktop icon actually do</strong> (for the developer, not the sponsor)</summary>
+
+* `Install Fertilizer Shop.bat` (repo root) — one-time only. Silently installs Docker
+  Desktop if missing (`Docker Desktop Installer.exe install --quiet --accept-license`),
+  waits for the engine, runs `scripts\_start_silent.bat`, then creates
+  `%USERPROFILE%\Desktop\Fertilizer Shop.lnk` via `scripts\_make_shortcut.vbs`
+  (icon: `app.ico`, target: `scripts\_launch_hidden.vbs`).
+* `scripts\_start_silent.bat` — the same first-run/start logic as the old
+  `scripts\start.bat`, minus the banner and the closing `pause`, so it can be called
+  with no user interaction. Exit code 0 = healthy; non‑zero = something failed.
+* `scripts\_launch_hidden.vbs` — what the Desktop icon runs every day. Launches
+  `_start_silent.bat` in a **hidden** window (`WshShell.Run(..., 0, True)`), waits for
+  it to finish, then opens `http://localhost:8080` in the default browser. Shows a
+  plain-language message box only if something goes wrong.
+* The old `scripts\start.bat` / `stop.bat` / `logs.bat` etc. still exist and still work
+  from a normal command prompt — useful for you, not meant for the sponsor.
+
+These `.bat`/`.vbs` scripts were written and reviewed but **could not be executed in
+the authoring environment** (no Windows machine available) — test the whole flow on a
+real Windows PC before handing it to the sponsor.
+</details>
 
 ---
 
 ## Starting the System
 
-Double‑click **`scripts\start.bat`** (safe to run every time the computer is switched on).
-It starts the containers, waits until the app is healthy, and prints the address.
+**Sponsor's everyday use:** double‑click the **"Fertilizer Shop" icon on the Desktop**.
+No terminal window, no typing — it starts the app quietly and opens the browser once
+it's ready.
+
+**Developer / troubleshooting:** double‑click **`scripts\start.bat`** for the original
+visible-progress version (safe to run every time the computer is switched on). It
+starts the containers, waits until the app is healthy, and prints the address.
 
 ## Stopping the System
 
@@ -284,11 +316,16 @@ The `IMAGE_OWNER` value in `.env.example` / `.env` and the repo URL inside
 ## Project Structure
 ```
 Fertilizer_Management_System/
+├── Install Fertilizer Shop.bat ← sponsor double-clicks this ONCE (installs Docker, starts the app, makes the Desktop icon)
+├── app.ico                     ← icon used by the Desktop shortcut
 ├── docker-compose.yml          ← 3 services + named volume
 ├── .env.example                ← configuration template (copy to .env)
 ├── VERSION / release.json      ← current app version
 ├── .github/workflows/release.yml ← builds & pushes versioned images on a git tag
 ├── scripts/                    ← start / stop / restart / backup / restore / update / rollback / logs  (.bat + .sh)
+│   ├── _start_silent.bat       ← shared no-prompt startup logic (used by the installer + the Desktop icon)
+│   ├── _make_shortcut.vbs      ← creates the Desktop "Fertilizer Shop" icon (run once by the installer)
+│   └── _launch_hidden.vbs      ← what the Desktop icon actually runs every day (hidden window)
 ├── backend/
 │   ├── Dockerfile
 │   ├── migrate.js              ← tracked, idempotent migration runner
