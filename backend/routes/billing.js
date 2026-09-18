@@ -40,7 +40,7 @@ router.get('/:id', protect, async (req, res) => {
 // @POST /api/billing - Create new invoice
 router.post('/', protect, async (req, res) => {
   try {
-    const { customerId, customerName, customerPhone, items, discount, tax, paymentType, amountPaid, dueDate, notes } = req.body;
+    const { customerId, customerName, customerPhone, items, discountPercent, taxPercent, paymentType, amountPaid, dueDate, notes } = req.body;
 
     // Validate and update stock
     const enrichedItems = [];
@@ -68,19 +68,28 @@ router.post('/', protect, async (req, res) => {
       await product.save();
     }
 
+    const discountPercentNum = Number(discountPercent) || 0;
+    const taxPercentNum = Number(taxPercent) || 0;
+    const amountPaidNum = Number(amountPaid) || 0;
+
     const subtotal = enrichedItems.reduce((sum, item) => sum + item.totalAmount, 0);
-    const totalAmount = subtotal - (discount || 0) + (tax || 0);
+    const discountNum = subtotal * discountPercentNum / 100;
+    const taxableAmount = subtotal - discountNum;
+    const taxNum = taxableAmount * taxPercentNum / 100;
+    const totalAmount = taxableAmount + taxNum;
 
     const invoiceData = {
       customerName,
       customerPhone,
       items: enrichedItems,
       subtotal,
-      discount: discount || 0,
-      tax: tax || 0,
+      discountPercent: discountPercentNum,
+      discount: discountNum,
+      taxPercent: taxPercentNum,
+      tax: taxNum,
       totalAmount,
       paymentType: paymentType || 'cash',
-      amountPaid: paymentType === 'cash' ? totalAmount : (amountPaid || 0),
+      amountPaid: paymentType === 'cash' ? totalAmount : amountPaidNum,
       dueDate,
       notes
     };
@@ -91,7 +100,7 @@ router.post('/', protect, async (req, res) => {
       if (paymentType === 'credit' || paymentType === 'partial') {
         const customer = await Customer.findById(customerId);
         if (customer) {
-          const due = totalAmount - (amountPaid || 0);
+          const due = totalAmount - amountPaidNum;
           customer.outstandingBalance += due;
           customer.totalPurchases += totalAmount;
           await customer.save();

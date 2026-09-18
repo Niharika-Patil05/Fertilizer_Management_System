@@ -17,8 +17,10 @@ const invoiceSchema = new mongoose.Schema({
   customerPhone: { type: String },
   items: [invoiceItemSchema],
   subtotal: { type: Number, required: true },
-  discount: { type: Number, default: 0 },
-  tax: { type: Number, default: 0 },
+  discountPercent: { type: Number, default: 0 },
+  discount: { type: Number, default: 0 }, // computed Rs. amount = subtotal * discountPercent / 100
+  taxPercent: { type: Number, default: 0 },
+  tax: { type: Number, default: 0 }, // computed Rs. amount = (subtotal - discount) * taxPercent / 100
   totalAmount: { type: Number, required: true },
   paymentType: { type: String, enum: ['cash', 'credit', 'partial'], default: 'cash' },
   amountPaid: { type: Number, default: 0 },
